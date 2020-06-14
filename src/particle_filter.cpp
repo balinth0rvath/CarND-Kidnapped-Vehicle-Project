@@ -32,7 +32,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
-  num_particles = 50;  // TODO: Set the number of particles
+  num_particles = 5;  // TODO: Set the number of particles
 	std::default_random_engine gen;
 	double std_x = std[0];
 	double std_y = std[1];
@@ -48,6 +48,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		particle.theta = dist_theta(gen);
 		particle.weight = 1.0;
 		particles.push_back(particle);	
+		weights.push_back(particle.weight);
 	}
   is_initialized = true;	
 }
@@ -61,19 +62,19 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
+	std::default_random_engine gen;
 	for(int i=0; i<num_particles;++i)
 	{
 		double x0 = particles[i].x;
 		double y0 = particles[i].y;
 		double theta0 = particles[i].theta;
 		
-		double theta_pred = theta0 + yaw_rate * delta_t;
 		double x_pred = x0 + (velocity / yaw_rate) * 
-										(sin(theta0 + theta_pred) - sin(theta0));
+										(sin(theta0 +yaw_rate * delta_t) - sin(theta0));
 
 		double y_pred = y0 + (velocity / yaw_rate) * 
-										(cos(theta0) - cos(theta0 + theta_pred));
-		std::default_random_engine gen;
+										(cos(theta0) - cos(theta0 +yaw_rate * delta_t));
+		double theta_pred = theta0 + yaw_rate * delta_t;
 		// TODO refactor it merging init and predict random generator into one function
 		double std_x = std_pos[0];
 		double std_y = std_pos[1];
