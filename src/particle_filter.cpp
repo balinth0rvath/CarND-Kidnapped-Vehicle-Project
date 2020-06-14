@@ -140,10 +140,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 																			x,y);
 					if (landmark_dist < min_dist)
 					{
+							min_dist = landmark_dist;
 							x_closest = map_landmarks.landmark_list[k].x_f;
 							y_closest = map_landmarks.landmark_list[k].y_f;
 					}
 			}	
+
 			particles[i].weight = particles[i].weight * multiv_prob(std_landmark[0],
 																	std_landmark[1],
 																	x,y,x_closest, y_closest); 
