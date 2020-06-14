@@ -97,6 +97,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   during the updateWeights phase.
    */
 
+	// transform observations 
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -116,6 +117,22 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
+	for(int i=0; i<num_particles; ++i)
+	{
+		// transform observations to map coordinate system respect to a partice
+		vector<LandmarkObs> obs_trns2pt;
+		for(int j=0; j<observations.size(); ++j)
+		{
+			LandmarkObs obs_trans;
+			obs_trans.id = observations[j].id;
+  		obs_trans.x = particles[i].x + (cos(particles[i].theta) * observations[j].x) - 
+					(sin(particles[i].theta) * observations[j].y);
+  		obs_trans.y = particles[i].y + (sin(particles[i].theta) * observations[j].x) + 
+					(cos(particles[i].theta) * observations[j].y);
+			obs_trns2pt.push_back(obs_trans);
+		}
+		double weight; 
+	}
 }
 
 void ParticleFilter::resample() {
