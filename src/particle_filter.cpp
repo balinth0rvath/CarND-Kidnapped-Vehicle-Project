@@ -1,3 +1,5 @@
+#include <cmath>
+
 /**
  * particle_filter.cpp
  *
@@ -97,7 +99,6 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   during the updateWeights phase.
    */
 
-	// transform observations 
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -119,19 +120,34 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 	for(int i=0; i<num_particles; ++i)
 	{
+		particles[i].weight = 1;	
 		// transform observations to map coordinate system respect to a partice
-		vector<LandmarkObs> obs_trns2pt;
 		for(int j=0; j<observations.size(); ++j)
 		{
-			LandmarkObs obs_trans;
-			obs_trans.id = observations[j].id;
-  		obs_trans.x = particles[i].x + (cos(particles[i].theta) * observations[j].x) - 
+  		double x = particles[i].x + (cos(particles[i].theta) * observations[j].x) - 
 					(sin(particles[i].theta) * observations[j].y);
-  		obs_trans.y = particles[i].y + (sin(particles[i].theta) * observations[j].x) + 
+  		double y = particles[i].y + (sin(particles[i].theta) * observations[j].x) + 
 					(cos(particles[i].theta) * observations[j].y);
-			obs_trns2pt.push_back(obs_trans);
+
+			double x_closest=0.0f;
+			double y_closest=0.0f;; 
+			double min_dist = 2 * sensor_range;
+			for(int k=0; k<map_landmarks.landmark_list.size();++k)
+			{
+					double landmark_dist = dist(map_landmarks.landmark_list[k].x_f,
+																			map_landmarks.landmark_list[k].y_f,
+																			x,y);
+					if (landmark_dist < min_dist)
+					{
+							x_closest = map_landmarks.landmark_list[k].x_f;
+							y_closest = map_landmarks.landmark_list[k].y_f;
+					}
+			}	
+			particles[i].weight = particles[i].weight * multiv_prob(std_landmark[0],
+																	std_landmark[1],
+																	x,y,x_closest, y_closest); 
 		}
-		double weight; 
+		
 	}
 }
 
@@ -183,3 +199,5 @@ string ParticleFilter::getSenseCoord(Particle best, string coord) {
   s = s.substr(0, s.length()-1);  // get rid of the trailing space
   return s;
 }
+
+
