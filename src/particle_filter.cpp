@@ -32,7 +32,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
-  num_particles = 5;  // TODO: Set the number of particles
+  num_particles = 15;  // TODO: Set the number of particles
 	std::default_random_engine gen;
 	double std_x = std[0];
 	double std_y = std[1];
@@ -99,7 +99,23 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
-
+	for(int j=0; j<observations.size(); ++j)
+	{
+			int id = -1;
+			double lowest_distance = 999.9;
+			
+			for(int k=0; k<predicted.size(); ++k)
+			{
+				double distance = dist(observations[j].x, observations[j].y,
+															predicted[k].x, predicted[k].y);
+				if (distance < lowest_distance)
+				{
+					lowest_distance = distance;	
+					id = predicted[k].id;	
+				}
+			}
+			observations[j].id = id;
+	}
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -119,10 +135,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
+	double weight_sum = 0.0f;
 	for(int i=0; i<num_particles; ++i)
 	{
 		particles[i].weight = 1;	
+
 		// transform observations to map coordinate system respect to a partice
+		// out: transformed_observations in map coordinates respect to the given particle
+		vector<LandmarkObs> transformed_observations;
 		for(int j=0; j<observations.size(); ++j)
 		{
   		double x = particles[i].x + (cos(particles[i].theta) * observations[j].x) - 
@@ -130,27 +150,59 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   		double y = particles[i].y + (sin(particles[i].theta) * observations[j].x) + 
 					(cos(particles[i].theta) * observations[j].y);
 
-			double x_closest=0.0f;
-			double y_closest=0.0f;; 
-			double min_dist = 2 * sensor_range;
-			for(int k=0; k<map_landmarks.landmark_list.size();++k)
-			{
-					double landmark_dist = dist(map_landmarks.landmark_list[k].x_f,
-																			map_landmarks.landmark_list[k].y_f,
-																			x,y);
-					if (landmark_dist < min_dist)
-					{
-							min_dist = landmark_dist;
-							x_closest = map_landmarks.landmark_list[k].x_f;
-							y_closest = map_landmarks.landmark_list[k].y_f;
-					}
-			}	
-
-			particles[i].weight = particles[i].weight * multiv_prob(std_landmark[0],
-																	std_landmark[1],
-																	x,y,x_closest, y_closest); 
+			LandmarkObs transformed_observation;
+			transformed_observation.id = observations[j].id;
+			transformed_observation.x = x;
+			transformed_observation.y = y;
+			transformed_observations.push_back(transformed_observation);
 		}
+
+		// Collect nearby landmarks 
+	  // out: nearby_landmarks in map coordinates
 		
+		vector<LandmarkObs> nearby_landmarks;
+		for(int j=0; j<map_landmarks.landmark_list.size(); ++j)
+		{
+			if (dist( map_landmarks.landmark_list[j].x_f,
+								map_landmarks.landmark_list[j].y_f,
+								particles[i].x,
+								particles[i].y
+								) < (sensor_range))
+			{
+				LandmarkObs nearby_landmark;
+				nearby_landmark.id = map_landmarks.landmark_list[j].id_i;
+				nearby_landmark.x = map_landmarks.landmark_list[j].x_f;
+				nearby_landmark.y = map_landmarks.landmark_list[j].y_f;
+				nearby_landmarks.push_back(nearby_landmark);	
+			}
+		}
+			
+		// Create data associations between nearby landmarks and transformed obs
+		// out: transformed obs updated
+		dataAssociation(nearby_landmarks, transformed_observations);
+
+		// Calculate weights: go through nearby landmarks and calcuate weight
+		// with associated observation
+		for(int j=0; j<transformed_observations.size(); ++j)
+		{
+			for(int k=0; k<nearby_landmarks.size(); ++k)
+			{
+				if (transformed_observations[j].id == nearby_landmarks[k].id)
+				{
+					particles[i].weight = particles[i].weight * multiv_prob(std_landmark[0],
+																std_landmark[1],
+																transformed_observations[j].x, transformed_observations[j].y,
+																nearby_landmarks[k].x, nearby_landmarks[k].y); 
+					weight_sum+= particles[i].weight;
+				}
+			}
+		}
+	}
+
+	for (int i=0;i<num_particles;++i)
+	{
+		particles[i].weight = particles[i].weight / weight_sum;		
+		weights[i] = particles[i].weight;
 	}
 }
 
