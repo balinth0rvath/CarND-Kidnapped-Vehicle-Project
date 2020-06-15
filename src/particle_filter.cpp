@@ -63,6 +63,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
 	std::default_random_engine gen;
+	double std_x = std_pos[0];
+	double std_y = std_pos[1];
+	double std_theta = std_pos[2];
+
 	for(int i=0; i<num_particles;++i)
 	{
 		double x0 = particles[i].x;
@@ -76,9 +80,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 										(cos(theta0) - cos(theta0 +yaw_rate * delta_t));
 		double theta_pred = theta0 + yaw_rate * delta_t;
 		// TODO refactor it merging init and predict random generator into one function
-		double std_x = std_pos[0];
-		double std_y = std_pos[1];
-		double std_theta = std_pos[2];
+
 		std::normal_distribution<double> dist_x(x_pred, std_x);
 		std::normal_distribution<double> dist_y(y_pred, std_y);
 		std::normal_distribution<double> dist_theta(theta_pred, std_theta);
@@ -99,12 +101,12 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
-	for(int j=0; j<observations.size(); ++j)
+	for(unsigned int j=0; j<observations.size(); ++j)
 	{
 			int id = -1;
 			double lowest_distance = 999.9;
 			
-			for(int k=0; k<predicted.size(); ++k)
+			for(unsigned int k=0; k<predicted.size(); ++k)
 			{
 				double distance = dist(observations[j].x, observations[j].y,
 															predicted[k].x, predicted[k].y);
@@ -117,6 +119,30 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
 			observations[j].id = id;
 	}
 }
+
+vector<LandmarkObs> ParticleFilter::filterLandmarks(const Particle& particle, 
+										 const Map &map_landmarks, double sensor_range)
+{
+
+	vector<LandmarkObs> nearby_landmarks;
+	for(unsigned int j=0; j<map_landmarks.landmark_list.size(); ++j)
+	{
+		if (dist( map_landmarks.landmark_list[j].x_f,
+							map_landmarks.landmark_list[j].y_f,
+							particle.x,
+							particle.y
+							) < (sensor_range))
+		{
+			LandmarkObs nearby_landmark;
+			nearby_landmark.id = map_landmarks.landmark_list[j].id_i;
+			nearby_landmark.x = map_landmarks.landmark_list[j].x_f;
+			nearby_landmark.y = map_landmarks.landmark_list[j].y_f;
+			nearby_landmarks.push_back(nearby_landmark);	
+		}
+	}
+	return nearby_landmarks;
+}
+
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
                                    const vector<LandmarkObs> &observations, 
@@ -143,7 +169,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		// transform observations to map coordinate system respect to a partice
 		// out: transformed_observations in map coordinates respect to the given particle
 		vector<LandmarkObs> transformed_observations;
-		for(int j=0; j<observations.size(); ++j)
+		for(unsigned int j=0; j<observations.size(); ++j)
 		{
   		double x = particles[i].x + (cos(particles[i].theta) * observations[j].x) - 
 					(sin(particles[i].theta) * observations[j].y);
@@ -161,21 +187,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	  // out: nearby_landmarks in map coordinates
 		
 		vector<LandmarkObs> nearby_landmarks;
-		for(int j=0; j<map_landmarks.landmark_list.size(); ++j)
-		{
-			if (dist( map_landmarks.landmark_list[j].x_f,
-								map_landmarks.landmark_list[j].y_f,
-								particles[i].x,
-								particles[i].y
-								) < (sensor_range))
-			{
-				LandmarkObs nearby_landmark;
-				nearby_landmark.id = map_landmarks.landmark_list[j].id_i;
-				nearby_landmark.x = map_landmarks.landmark_list[j].x_f;
-				nearby_landmark.y = map_landmarks.landmark_list[j].y_f;
-				nearby_landmarks.push_back(nearby_landmark);	
-			}
-		}
+		nearby_landmarks = filterLandmarks(particles[i], map_landmarks, sensor_range);
 			
 		// Create data associations between nearby landmarks and transformed obs
 		// out: transformed obs updated
@@ -183,9 +195,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 		// Calculate weights: go through nearby landmarks and calcuate weight
 		// with associated observation
-		for(int j=0; j<transformed_observations.size(); ++j)
+		for(unsigned int j=0; j<transformed_observations.size(); ++j)
 		{
-			for(int k=0; k<nearby_landmarks.size(); ++k)
+			for(unsigned int k=0; k<nearby_landmarks.size(); ++k)
 			{
 				if (transformed_observations[j].id == nearby_landmarks[k].id)
 				{

@@ -65,7 +65,16 @@ class ParticleFilter {
    */
   void dataAssociation(std::vector<LandmarkObs> predicted, 
                        std::vector<LandmarkObs>& observations);
-  
+ 
+	 
+  /**
+   * filterLandmarks returns a vector of landmarks in sensor_range to
+	 * the given particle 
+   * @param particle in the center
+   * @param sensor range from this particle
+   */
+	std::vector<LandmarkObs> filterLandmarks(const Particle& particle, 
+										 const Map &map_landmarks, double sensor_range);
   /**
    * updateWeights Updates the weights for each particle based on the likelihood
    *   of the observed measurements. 
