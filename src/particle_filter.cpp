@@ -71,11 +71,20 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 	
 		// calculate the new postion and heading using the previous ones,
 		// velocity, yawn rate. Use bicyle motion model	
-		double x_pred = x0 + (velocity / yaw_rate) * 
-										(sin(theta0 +yaw_rate * delta_t) - sin(theta0));
+		double x_pred = 0;
+		double y_pred = 0;
+		if (fabs(yaw_rate) < 0.000001)
+		{
+			x_pred = x0 + velocity * delta_t * cos(theta0);
+			y_pred = y0 + velocity * delta_t * sin(theta0);
+		} else
+		{
+			x_pred = x0 + (velocity / yaw_rate) * 
+											(sin(theta0 +yaw_rate * delta_t) - sin(theta0));
 
-		double y_pred = y0 + (velocity / yaw_rate) * 
-										(cos(theta0) - cos(theta0 +yaw_rate * delta_t));
+			y_pred = y0 + (velocity / yaw_rate) * 
+											(cos(theta0) - cos(theta0 +yaw_rate * delta_t));
+		}
 		double theta_pred = theta0 + yaw_rate * delta_t;
 	
 		// add noise
