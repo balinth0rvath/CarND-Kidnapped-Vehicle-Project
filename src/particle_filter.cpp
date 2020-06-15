@@ -25,12 +25,10 @@ using std::vector;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   /**
-   * TODO: Set the number of particles. Initialize all particles to 
+   * Set the number of particles. Initialize all particles to 
    *   first position (based on estimates of x, y, theta and their uncertainties
    *   from GPS) and all weights to 1. 
-   * TODO: Add random Gaussian noise to each particle.
-   * NOTE: Consult particle_filter.h for more information about this method 
-   *   (and others in this file).
+   * Add random Gaussian noise to each particle.
    */
   num_particles = 15;  // TODO: Set the number of particles
 	std::default_random_engine gen;
@@ -43,9 +41,11 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	for (int i=0; i< num_particles; ++i)
 	{
 		Particle particle;
+		// add random noise to positions
 		particle.x = dist_x(gen);
 		particle.y = dist_y(gen);
 		particle.theta = dist_theta(gen);
+		// initialize all weights to one
 		particle.weight = 1.0;
 		particles.push_back(particle);	
 		weights.push_back(particle.weight);
@@ -56,11 +56,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 void ParticleFilter::prediction(double delta_t, double std_pos[], 
                                 double velocity, double yaw_rate) {
   /**
-   * TODO: Add measurements to each particle and add random Gaussian noise.
-   * NOTE: When adding noise you may find std::normal_distribution 
-   *   and std::default_random_engine useful.
-   *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-   *  http://www.cplusplus.com/reference/random/default_random_engine/
+   * Add measurements to each particle and add random Gaussian noise.
    */
 	std::default_random_engine gen;
 	double std_x = std_pos[0];
@@ -72,15 +68,17 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 		double x0 = particles[i].x;
 		double y0 = particles[i].y;
 		double theta0 = particles[i].theta;
-		
+	
+		// calculate the new postion and heading using the previous ones,
+		// velocity, yawn rate. Use bicyle motion model	
 		double x_pred = x0 + (velocity / yaw_rate) * 
 										(sin(theta0 +yaw_rate * delta_t) - sin(theta0));
 
 		double y_pred = y0 + (velocity / yaw_rate) * 
 										(cos(theta0) - cos(theta0 +yaw_rate * delta_t));
 		double theta_pred = theta0 + yaw_rate * delta_t;
-		// TODO refactor it merging init and predict random generator into one function
-
+	
+		// add noise
 		std::normal_distribution<double> dist_x(x_pred, std_x);
 		std::normal_distribution<double> dist_y(y_pred, std_y);
 		std::normal_distribution<double> dist_theta(theta_pred, std_theta);
@@ -94,16 +92,15 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, 
                                      vector<LandmarkObs>& observations) {
   /**
-   * TODO: Find the predicted measurement that is closest to each 
+   * Find the predicted measurement that is closest to each 
    *   observed measurement and assign the observed measurement to this 
    *   particular landmark.
-   * NOTE: this method will NOT be called by the grading code. But you will 
-   *   probably find it useful to implement this method and use it as a helper 
-   *   during the updateWeights phase.
    */
 	for(unsigned int j=0; j<observations.size(); ++j)
 	{
 			int id = -1;
+			// Calcukating an exact bound for lowest distance is not important
+			// since landmarks were filtered to a range in a previous step 
 			double lowest_distance = 999.9;
 			
 			for(unsigned int k=0; k<predicted.size(); ++k)
@@ -123,6 +120,10 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
 vector<LandmarkObs> ParticleFilter::filterLandmarks(const Particle& particle, 
 										 const Map &map_landmarks, double sensor_range)
 {
+  /**
+   * Collect landmarks in sensor range respect to a specific particle 
+	 * to improve speed
+   */
 
 	vector<LandmarkObs> nearby_landmarks;
 	for(unsigned int j=0; j<map_landmarks.landmark_list.size(); ++j)
@@ -148,17 +149,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                                    const vector<LandmarkObs> &observations, 
                                    const Map &map_landmarks) {
   /**
-   * TODO: Update the weights of each particle using a mult-variate Gaussian 
-   *   distribution. You can read more about this distribution here: 
-   *   https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-   * NOTE: The observations are given in the VEHICLE'S coordinate system. 
-   *   Your particles are located according to the MAP'S coordinate system. 
-   *   You will need to transform between the two systems. Keep in mind that
-   *   this transformation requires both rotation AND translation (but no scaling).
-   *   The following is a good resource for the theory:
-   *   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-   *   and the following is a good resource for the actual equation to implement
-   *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
+   * Update the weights of each particle using a mult-variate Gaussian 
    */
 
 	double weight_sum = 0.0f;
@@ -167,7 +158,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		particles[i].weight = 1;	
 
 		// transform observations to map coordinate system respect to a partice
-		// out: transformed_observations in map coordinates respect to the given particle
+		// outputs transformed_observations in map coordinates respect to the given particle
 		vector<LandmarkObs> transformed_observations;
 		for(unsigned int j=0; j<observations.size(); ++j)
 		{
@@ -184,13 +175,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		}
 
 		// Collect nearby landmarks 
-	  // out: nearby_landmarks in map coordinates
+	  // outputs nearby landmarks in map coordinates
 		
 		vector<LandmarkObs> nearby_landmarks;
 		nearby_landmarks = filterLandmarks(particles[i], map_landmarks, sensor_range);
 			
 		// Create data associations between nearby landmarks and transformed obs
-		// out: transformed obs updated
+		// outputs transformed obs updated
 		dataAssociation(nearby_landmarks, transformed_observations);
 
 		// Calculate weights: go through nearby landmarks and calcuate weight
@@ -211,6 +202,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		}
 	}
 
+	// normalize weights
 	for (int i=0;i<num_particles;++i)
 	{
 		particles[i].weight = particles[i].weight / weight_sum;		
@@ -220,15 +212,17 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 void ParticleFilter::resample() {
   /**
-   * TODO: Resample particles with replacement with probability proportional 
+   * Resample particles with replacement with probability proportional 
    *   to their weight. 
-   * NOTE: You may find std::discrete_distribution helpful here.
-   *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
 	std::default_random_engine gen;
 	vector<Particle> resampled;
 	std::uniform_int_distribution<int> index_dist(0, num_particles - 1);
+
+	// resampling wheel variable
 	double beta = 0.0f;
+
+	// Select the largest weight
 	double max_weight = *max_element(weights.begin(), weights.end());
 	unsigned int curr_index = index_dist(gen);
 
@@ -236,6 +230,7 @@ void ParticleFilter::resample() {
 	{
 		std::uniform_real_distribution<double> dist_weight(0.0, 2 * max_weight);
 		beta = beta + dist_weight(gen);
+		// roll the resampling wheel
 		while(beta > weights[curr_index])
 		{
 			beta = beta - weights[curr_index];
